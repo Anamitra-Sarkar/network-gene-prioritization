@@ -193,6 +193,16 @@ def parse_hpo_genes_to_phenotype(path: str | Path) -> pd.DataFrame:
             out["hpo_name"] = df[hpo_name_col]
         return out
 
+    # phenotype_to_genes.txt format (also a valid real gene<->HPO source, columns:
+    # hpo_id, hpo_name, ncbi_gene_id, gene_symbol, ...)
+    if "gene_symbol" in cols_lower and "hpo_id" in cols_lower:
+        out = pd.DataFrame()
+        out["gene_symbol"] = df[cols_lower["gene_symbol"]]
+        out["hpo_id"] = df[cols_lower["hpo_id"]]
+        if "hpo_name" in cols_lower:
+            out["hpo_name"] = df[cols_lower["hpo_name"]]
+        return out
+
     # phenotype.hpoa format
     if "database_id" in cols_lower:
         # database_id is like OMIM:123456

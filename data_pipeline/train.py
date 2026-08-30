@@ -126,8 +126,12 @@ def run_real_training(
         for train_pos, test_pos in splits:
             if len(train_pos) == 0 or len(test_pos) == 0:
                 continue
-            chans = rwr_multi_channel(W_ppi, ppi_seeds=train_pos, hpo_seeds=train_pos)
-            chans_hpo_only = None
+            # NOTE: only build the "hpo" channel from the real HPO phenotype-similarity
+            # graph (W_hpo). Do NOT also route hpo_seeds through rwr_multi_channel's
+            # ppi_seeds/hpo_seeds pair with the SAME seed set over W_ppi -- that produces
+            # a near-duplicate of the "ppi" channel under a different name, not a real
+            # second source of evidence.
+            chans = {"ppi": rwr_multi_channel(W_ppi, ppi_seeds=train_pos)["ppi"]}
             if W_hpo.nnz > 0:
                 from data_pipeline.propagation import random_walk_with_restart
                 try:
@@ -136,14 +140,24 @@ def run_real_training(
                     pass
 
             X, feat_names = build_feature_matrix(chans, W=W_ppi)
+            # Standardize features before the MLP: RWR probabilities are ~1e-4..1e-2
+            # while raw degree can be in the thousands for hub nodes -- without
+            # normalization the MLP's loss landscape is dominated by degree and the
+            # RWR signal gets effectively ignored (real bug caught on the first real
+            # Kaggle run: fusion predictions collapsed to ~= the degree-only baseline).
+            X_mean = X.mean(axis=0, keepdims=True)
+            X_std = X.std(axis=0, keepdims=True)
+            X_std[X_std == 0] = 1.0
+            X_norm = (X - X_mean) / X_std
+
             y = np.zeros(n_nodes, dtype=int)
             y[test_pos] = 1
             # Exclude train-positive genes from evaluation (they were the seeds, not held out)
             eval_mask = np.ones(n_nodes, dtype=bool)
             eval_mask[train_pos] = False
 
-            model = train_fusion_model(X[eval_mask], y[eval_mask], epochs=epochs, device=device)
-            scores_full = predict_scores(model, X, device=device)
+            model = train_fusion_model(X_norm[eval_mask], y[eval_mask], epochs=epochs, device=device)
+            scores_full = predict_scores(model, X_norm, device=device)
 
             fold_metrics_fusion.append(compute_metrics(y[eval_mask], scores_full[eval_mask]))
             fold_metrics_rwr.append(compute_metrics(y[eval_mask], chans["ppi"][eval_mask]))

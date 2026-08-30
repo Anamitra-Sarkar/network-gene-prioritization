@@ -17,7 +17,17 @@ import urllib.request
 
 STRING_URL = "https://stringdb-downloads.org/download/protein.links.v12.0/9606.protein.links.v12.0.txt.gz"
 STRING_INFO_URL = "https://stringdb-downloads.org/download/protein.info.v12.0/9606.protein.info.v12.0.txt.gz"
-HPO_GENES_TO_PHENOTYPE_URL = "https://ci.monarchinitiative.org/view/hpo/job/hpo.annotations/lastSuccessfulBuild/artifact/genes_to_phenotype.txt"
+# genes_to_phenotype.txt (gene_symbol -> HPO term, what we actually need for the
+# phenotype-similarity channel) is preferred; phenotype_to_genes.txt has the same
+# gene_symbol/hpo_id columns in a differently-ordered file and is a reliable second
+# source; phenotype.hpoa is DISEASE-level (no gene_symbol column) and is only useful
+# as an absolute last resort (build_gene_hpo_terms will find it empty).
+HPO_GENES_TO_PHENOTYPE_URLS = [
+    "https://ci.monarchinitiative.org/view/hpo/job/hpo.annotations/lastSuccessfulBuild/artifact/genes_to_phenotype.txt",
+    "https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/genes_to_phenotype.txt",
+    "https://github.com/obophenotype/human-phenotype-ontology/releases/latest/download/phenotype_to_genes.txt",
+]
+HPO_GENES_TO_PHENOTYPE_URL = HPO_GENES_TO_PHENOTYPE_URLS[0]
 HPO_PHENOTYPE_HPOA_URL = "http://purl.obolibrary.org/obo/hp/hpoa/phenotype.hpoa"
 HPO_GENES_TO_DISEASE_URLS = [
     "https://ci.monarchinitiative.org/view/hpo/job/hpo.annotations/lastSuccessfulBuild/artifact/genes_to_disease.txt",
@@ -48,12 +58,18 @@ def download_string(dest: str | Path = "data/raw/9606.protein.links.v12.0.txt.gz
 
 
 def download_hpo(dest: str | Path = "data/raw/genes_to_phenotype.txt") -> Path:
-    # Try primary, fallback to phenotype.hpoa
-    try:
-        return download_file(HPO_GENES_TO_PHENOTYPE_URL, dest)
-    except Exception as e:
-        print(f"Primary HPO download failed ({e}), trying phenotype.hpoa")
-        return download_file(HPO_PHENOTYPE_HPOA_URL, dest)
+    # Try each real gene_symbol<->HPO-term source in order; phenotype.hpoa (disease-
+    # level, no gene_symbol column) is the last-resort fallback only.
+    last_exc: Exception | None = None
+    for url in HPO_GENES_TO_PHENOTYPE_URLS:
+        try:
+            return download_file(url, dest)
+        except Exception as e:
+            print(f"HPO download from {url} failed ({e}), trying next")
+            last_exc = e
+    print(f"All gene-level HPO sources failed ({last_exc}), falling back to phenotype.hpoa "
+          f"(disease-level only -- the gene-level phenotype-similarity channel will be empty)")
+    return download_file(HPO_PHENOTYPE_HPOA_URL, dest)
 
 
 def download_hgnc(dest: str | Path = "data/raw/hgnc_complete_set.txt") -> Path:
