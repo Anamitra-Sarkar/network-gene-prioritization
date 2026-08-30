@@ -189,3 +189,72 @@ def build_feature_matrix(
 
     X = np.hstack(cols) if cols else np.zeros((n, 0))
     return X, feature_names
+
+
+def build_hpo_similarity_adjacency(
+    gene_hpo_terms: dict[str, set],
+    gene_index: dict[str, int],
+    n_nodes: int,
+    min_shared_terms: int = 2,
+    max_pairs: int = 5_000_000,
+) -> sp.csr_matrix:
+    """
+    Build a gene-gene phenotype-similarity graph, independent evidence from the
+    PPI network: two genes are connected if they share >= min_shared_terms HPO
+    terms, weighted by inverse document frequency of the shared terms (rare,
+    specific shared phenotypes score higher than common ones -- standard
+    information-content-weighted phenotype similarity, e.g. as used by
+    Exomiser/PhenoDigm-style methods). Returns a column-normalized adjacency
+    ready for random_walk_with_restart.
+
+    Genes not present in gene_index are dropped. Terms occurring in >200 genes
+    are down-weighted heavily (near-uninformative, e.g. very generic phenotypes)
+    to avoid hub explosion; this keeps the resulting graph sparse and
+    computationally tractable at STRING scale.
+    """
+    # Build inverted index: hpo_term -> set of gene indices (restricted to gene_index)
+    term_to_genes: dict[str, list[int]] = {}
+    for gene, terms in gene_hpo_terms.items():
+        gi = gene_index.get(gene)
+        if gi is None:
+            continue
+        for t in terms:
+            term_to_genes.setdefault(t, []).append(gi)
+
+    n_genes_total = max(len(gene_index), 1)
+    rows: list[int] = []
+    cols: list[int] = []
+    data: list[float] = []
+    pair_scores: dict[tuple[int, int], float] = {}
+    pair_counts: dict[tuple[int, int], int] = {}
+
+    for term, gene_ids in term_to_genes.items():
+        df = len(gene_ids)
+        if df < 2 or df > 2000:
+            continue  # skip singleton or near-uninformative hub terms
+        idf = float(np.log(n_genes_total / df))
+        gene_ids_sorted = sorted(set(gene_ids))
+        for i in range(len(gene_ids_sorted)):
+            for j in range(i + 1, len(gene_ids_sorted)):
+                key = (gene_ids_sorted[i], gene_ids_sorted[j])
+                pair_scores[key] = pair_scores.get(key, 0.0) + idf
+                pair_counts[key] = pair_counts.get(key, 0) + 1
+                if len(pair_scores) > max_pairs:
+                    break
+            if len(pair_scores) > max_pairs:
+                break
+        if len(pair_scores) > max_pairs:
+            break
+
+    for (i, j), score in pair_scores.items():
+        if pair_counts[(i, j)] < min_shared_terms:
+            continue
+        rows.append(i)
+        cols.append(j)
+        data.append(score)
+
+    if not rows:
+        return sp.csr_matrix((n_nodes, n_nodes), dtype=np.float64)
+
+    edges = list(zip(rows, cols, data))
+    return build_column_normalized_adjacency(n_nodes, edges)

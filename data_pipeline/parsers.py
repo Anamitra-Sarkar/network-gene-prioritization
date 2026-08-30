@@ -75,6 +75,69 @@ def string_protein_to_gene(protein_id: str) -> str:
     return protein_id
 
 
+def parse_string_info(path: str | Path) -> dict[str, str]:
+    """
+    Parse STRING protein.info file (protein_id  preferred_name  protein_size  annotation).
+    Returns dict mapping STRING protein_id (e.g. '9606.ENSP00000000233') -> gene symbol
+    (preferred_name). This is the correct, direct STRING-native id->gene-symbol mapping
+    (avoids fragile cross-referencing through HGNC/Ensembl gene ids).
+    """
+    path = Path(path)
+    opener = gzip.open if str(path).endswith(".gz") else open
+    mapping: dict[str, str] = {}
+    with opener(path, "rt") as f:  # type: ignore
+        header = f.readline().strip().split("\t")
+        col_idx = {h: i for i, h in enumerate(header)}
+        pid_i = col_idx.get("#string_protein_id", col_idx.get("string_protein_id", 0))
+        name_i = col_idx.get("preferred_name", 1)
+        for line in f:
+            if not line.strip():
+                continue
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) <= max(pid_i, name_i):
+                continue
+            mapping[parts[pid_i]] = parts[name_i]
+    return mapping
+
+
+def parse_genes_to_disease(path: str | Path) -> dict[str, set[str]]:
+    """
+    Parse HPO genes_to_disease.txt (real, public, no-auth annotation file).
+    Real columns (ncbi_gene_id, gene_symbol, association_type, disease_id, source, ...).
+    Returns dict mapping disease_id (e.g. 'OMIM:154700') -> set of gene symbols.
+    """
+    path = Path(path)
+    df = pd.read_csv(path, sep="\t", dtype=str, comment="#", low_memory=False)
+    cols_lower = {c.lower().lstrip("#"): c for c in df.columns}
+    sym_col = cols_lower.get("gene_symbol") or cols_lower.get("gene-symbol") or cols_lower.get("gene_symbol.1")
+    dis_col = cols_lower.get("disease_id") or cols_lower.get("disease-id")
+    if sym_col is None or dis_col is None:
+        raise ValueError(f"genes_to_disease.txt: could not find gene/disease columns in {list(df.columns)}")
+    out: dict[str, set[str]] = {}
+    for sym, dis in zip(df[sym_col], df[dis_col]):
+        if pd.isna(sym) or pd.isna(dis):
+            continue
+        out.setdefault(dis, set()).add(sym)
+    return out
+
+
+def build_gene_hpo_terms(path: str | Path) -> dict[str, set[str]]:
+    """
+    Parse HPO genes_to_phenotype.txt into gene_symbol -> set of HPO term IDs.
+    Used to build a phenotype-similarity gene-gene graph (independent evidence
+    channel from the PPI network).
+    """
+    df = parse_hpo_genes_to_phenotype(path)
+    out: dict[str, set[str]] = {}
+    if "gene_symbol" not in df.columns or "hpo_id" not in df.columns:
+        return out
+    for sym, hpo in zip(df["gene_symbol"], df["hpo_id"]):
+        if pd.isna(sym) or pd.isna(hpo):
+            continue
+        out.setdefault(sym, set()).add(hpo)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # HGNC
 # ---------------------------------------------------------------------------
