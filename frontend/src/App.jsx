@@ -16,15 +16,25 @@ export default function App() {
   }, [])
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 800, margin: '2rem auto', padding: '0 1rem' }}>
-      <h1>Network Gene Prioritization</h1>
-      <p style={{ color: '#555' }}>Network-propagated multi-omics disease-gene prioritization (RWR + learned fusion)</p>
+    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 840, margin: '2rem auto', padding: '0 1rem', boxSizing: 'border-box' }}>
+      <header>
+        <h1 style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', lineHeight: 1.2, marginBottom: 4 }}>Network Gene Prioritization</h1>
+        <p style={{ color: '#374151', marginTop: 0 }}>Network-propagated multi-omics disease-gene prioritization (RWR + learned fusion)</p>
+      </header>
 
-      <div style={{ background: '#f5f5f5', padding: '0.75rem', borderRadius: 8, marginBottom: '1rem' }}>
-        <strong>Service status:</strong> {health ? JSON.stringify(health) : 'loading...'}
+      <div style={{ background: '#f5f5f5', padding: '0.75rem 1rem', borderRadius: 8, marginBottom: '1rem', overflowX: 'auto' }} role="status" aria-live="polite">
+        <strong>Service status:</strong>{' '}
+        {health ? (
+          <code style={{ wordBreak: 'break-all', fontSize: '0.85em' }}>{JSON.stringify(health)}</code>
+        ) : 'loading...'}
         {health && !health.model_approved && (
-          <div style={{ color: '#b45309', marginTop: 6 }}>
-            Research service — no approved model yet. Results will show abstention state until MODEL_RELEASE_APPROVED=true.
+          <div style={{ color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', padding: '6px 10px', borderRadius: 6, marginTop: 8 }}>
+            Research service — no approved model yet. Results will show abstention state until <code>MODEL_RELEASE_APPROVED=true</code>.
+          </div>
+        )}
+        {health && health.status === 'unreachable' && (
+          <div style={{ color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', padding: '6px 10px', borderRadius: 6, marginTop: 8 }} role="alert">
+            API unreachable — check that the backend is running at the configured API base URL.
           </div>
         )}
       </div>
@@ -57,12 +67,22 @@ function LoginForm() {
     try { await signInWithEmailAndPassword(auth, email, password) } catch (e) { setErr(e.message) }
   }
   return (
-    <form onSubmit={onSubmit} style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: 8 }}>
+    <form onSubmit={onSubmit} noValidate aria-label="Sign in" style={{ border: '1px solid #e5e7eb', padding: '1rem', borderRadius: 8, maxWidth: '100%', boxSizing: 'border-box' }}>
       <h3>Researcher sign-in</h3>
-      <input placeholder="email" value={email} onChange={e => setEmail(e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: '100%' }} />
-      <input type="password" placeholder="password" value={password} onChange={e => setPassword(e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: '100%' }} />
-      <button type="submit">Sign in</button>
-      {err && <p style={{ color: 'red' }}>{err}</p>}
+      <div style={{ marginBottom: 8 }}>
+        <label htmlFor="login-email" style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Email</label>
+        <input id="login-email" name="email" type="email" autoComplete="email" required aria-required="true"
+          placeholder="researcher@example.com" value={email} onChange={e => setEmail(e.target.value)}
+          style={{ display: 'block', marginBottom: 4, padding: '8px 10px', width: '100%', borderRadius: 6, border: '1px solid #9ca3af', fontSize: '1rem', boxSizing: 'border-box' }} />
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <label htmlFor="login-password" style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Password</label>
+        <input id="login-password" name="password" type="password" autoComplete="current-password" required aria-required="true"
+          placeholder="password" value={password} onChange={e => setPassword(e.target.value)}
+          style={{ display: 'block', marginBottom: 4, padding: '8px 10px', width: '100%', borderRadius: 6, border: '1px solid #9ca3af', fontSize: '1rem', boxSizing: 'border-box' }} />
+      </div>
+      <button type="submit" style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: '#111827', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>Sign in</button>
+      {err && <p style={{ color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', padding: 8, borderRadius: 6, marginTop: 10 }} role="alert">{err}</p>}
     </form>
   )
 }

@@ -36,7 +36,7 @@ docs/architecture.md  # detailed architecture
 
 ```bash
 pip install -r requirements.txt
-pytest -v  # 26 tests, ~2s
+pytest -v  # 60+ tests, ~2-4s
 
 # API (abstains honestly without release approval)
 uvicorn backend.app.main:app --reload --port 8000
@@ -95,7 +95,7 @@ Env vars: `MODEL_RELEASE_APPROVED`, `APPROVED_ARTIFACT_REVISION`, `SERVICE_TOKEN
 
 ```bash
 pytest -v --cov
-# 26 tests: RWR convergence/ranking, multi-channel shapes, fusion forward, recall@k/AUPRC, leave-genes-out no-leak, STRING/HPO/HGNC/DisGeNET parsers (inline fixtures), release-gate fail-closed
+# 60+ tests: RWR convergence/ranking/isolated/self-loops/restart extremes, multi-channel shapes, HPO similarity graph, fusion forward, recall@k/AUPRC edge cases, leave-genes-out no-leak/deterministic, STRING/HPO/HGNC/DisGeNET parsers (inline fixtures + comment/blank/header-variant/gz edge cases, genes_to_disease, phenotype.hpoa), API validation (422 for bad top_k/restart_prob/empty seeds, 403 vs 503 token, Bearer vs X-Service-Token), release-gate fail-closed, schema sanitization (strip/H).
 ```
 
 ## Honest Current Status

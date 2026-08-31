@@ -46,9 +46,17 @@ async def prioritize(
             method=None,
         )
 
-    # Validate input
+    # Validate input (after pydantic sanitization empty strings/lists become None)
     if not body.disease_name and not body.seed_genes:
-        raise HTTPException(status_code=422, detail="Either disease_name or seed_genes must be provided")
+        raise HTTPException(status_code=422, detail="Either disease_name or seed_genes must be provided (after trimming empty entries)")
+    # Additional sanity: if seed_genes provided, ensure at least one non-empty after cleaning
+    if body.seed_genes is not None and len(body.seed_genes) == 0:
+        raise HTTPException(status_code=422, detail="seed_genes must contain at least one non-empty gene symbol")
+    # Cap seed_genes length to avoid abuse (HGNC symbols list shouldn't be huge)
+    if body.seed_genes is not None and len(body.seed_genes) > 500:
+        raise HTTPException(status_code=422, detail="seed_genes list too large (max 500)")
+    if body.hpo_terms is not None and len(body.hpo_terms) > 500:
+        raise HTTPException(status_code=422, detail="hpo_terms list too large (max 500)")
 
     # If approved but no artifact yet, still abstain honestly
     artifact_dir = os.getenv("ARTIFACT_DIR", "artifacts")
