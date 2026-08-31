@@ -6,7 +6,7 @@ venv/
 .env
 data/raw/
 artifacts/
-models/
+/models/
 frontend/node_modules/
 frontend/dist/
 .pytest_cache/

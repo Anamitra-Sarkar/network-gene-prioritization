@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { auth } from '../lib/firebase.js'
+import { apiUrl } from '../lib/api.js'
 
 export default function PrioritizePage({ user }) {
   const [disease, setDisease] = useState('')
@@ -23,7 +24,7 @@ export default function PrioritizePage({ user }) {
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
       // Also try service token if available (internal endpoint)
-      const res = await fetch('/api/v1/prioritize', { method: 'POST', headers, body: JSON.stringify(body) })
+      const res = await fetch(apiUrl('/api/v1/prioritize'), { method: 'POST', headers, body: JSON.stringify(body) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.detail || JSON.stringify(data))
       setResult(data)

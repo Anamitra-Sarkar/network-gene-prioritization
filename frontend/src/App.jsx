@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { auth } from './lib/firebase.js'
+import { apiUrl } from './lib/api.js'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import PrioritizePage from './components/PrioritizePage.jsx'
 
@@ -8,7 +9,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
 
   useEffect(() => {
-    fetch('/api/v1/healthz').then(r => r.json()).then(setHealth).catch(() => setHealth({ status: 'unreachable' }))
+    fetch(apiUrl('/api/v1/healthz')).then(r => r.json()).then(setHealth).catch(() => setHealth({ status: 'unreachable' }))
     if (!auth) return
     const unsub = onAuthStateChanged(auth, setUser)
     return () => unsub()

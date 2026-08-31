@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Fail-closed release gate — OFF by default (safe). Set to "true" + revision to enable real inference.
+      MODEL_RELEASE_APPROVED: "${MODEL_RELEASE_APPROVED:-false}"
+      APPROVED_ARTIFACT_REVISION: "${APPROVED_ARTIFACT_REVISION:-}"
+      ARTIFACT_DIR: "${ARTIFACT_DIR:-artifacts}"
+      # Service-token gate for /prioritize (fail-closed if unset — set a secret to enable)
+      SERVICE_TOKEN: "${SERVICE_TOKEN:-}"
+      INTERNAL_SERVICE_TOKEN: "${INTERNAL_SERVICE_TOKEN:-}"
+      # Firebase Admin (optional for local dev; set ALLOW_ANONYMOUS=true to bypass)
+      FIREBASE_ADMIN_JSON: "${FIREBASE_ADMIN_JSON:-}"
+      FIREBASE_SERVICE_ACCOUNT: "${FIREBASE_SERVICE_ACCOUNT:-}"
+      ALLOW_ANONYMOUS: "${ALLOW_ANONYMOUS:-true}"
+    volumes:
+      # Mount artifacts if present locally (read-only)
+      - ./artifacts:/app/artifacts:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
