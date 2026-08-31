@@ -22,6 +22,15 @@ export default function App() {
         <p style={{ color: '#374151', marginTop: 0 }}>Network-propagated multi-omics disease-gene prioritization (RWR + learned fusion)</p>
       </header>
 
+      <div style={{ marginBottom: '1.25rem', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', background: '#f9fafb' }}>
+        <img
+          src="/hero.png"
+          alt="Abstract illustration of a gene interaction network with interconnected nodes and edges representing biological pathways and multi-omics data flow"
+          style={{ display: 'block', width: '100%', maxHeight: 320, objectFit: 'cover', objectPosition: 'center' }}
+          loading="eager"
+        />
+      </div>
+
       <div style={{ background: '#f5f5f5', padding: '0.75rem 1rem', borderRadius: 8, marginBottom: '1rem', overflowX: 'auto' }} role="status" aria-live="polite">
         <strong>Service status:</strong>{' '}
         {health ? (
